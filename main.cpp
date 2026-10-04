@@ -4,6 +4,7 @@
 using namespace std;
 
 int main() {
+    //TESTING ON SAMPLE NUMBS 
     int samplingRate = 200;
     PanTompkinsDetector detector(samplingRate);
     vector<double> signal(1000, 0.0);
@@ -19,6 +20,12 @@ int main() {
     for (int peak : peaks) {
         cout << peak << endl;
     }
-
+    /*RESULT: 
+    128
+    328
+    528
+    728
+    928
+    >> correct! */ 
     return 0;
 }
