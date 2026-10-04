@@ -1,9 +1,8 @@
-using namespace std;
-
 #ifndef PANTOMPKINSDETECTOR_H
 #define PANTOMPKINSDETECTOR_H
 
 #include <vector>
+using namespace std;
 
 class PanTompkinsDetector {
 public:
@@ -12,7 +11,7 @@ public:
 
 private:
     int samplingRate;
-    
+
     vector<double> bandPassFilter(const vector<double>& signal);
     vector<double> derivative(const vector<double>& signal);
     vector<double> squareSignal(const vector<double>& signal);
