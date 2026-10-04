@@ -69,7 +69,7 @@ vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>
     //150 ms window for a 200 Hz signal
     int windowSize = 30;
 
-    for (int i = windowSize - 1; i < signal.size(); i++) {
+    for (int i = windowSize -1; i < signal.size();i++) {
         double sum = 0;
         //add all values inside the current window
         for (int j = i - windowSize + 1; j <= i; j++) {
@@ -81,38 +81,109 @@ vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>
     return integratedValues;
 }
 
-//detects QRS peak positions from the processed ECG signal
+//cetects QRS peak positions from the processed ECG signal
 vector<int> PanTompkinsDetector::detectPeaks(const vector<double>& signal) {
     vector<int> peaks;
     if (signal.empty()) {
         return peaks;
     }
-    
-    double noisePeakEstimate = 0.0; 
+
+    //threshold values -> TO BE UPDATED - cuz i HAVENT set the nums yet
+    double noisePeakEstimate = 0.0;
     double threshold = 0.0;
     double signalPeakEstimate = 0.0;
-
-    int lastPeak = -1; //last heartbeat received to check for fake ones
-    vector <int> rrIntervals; //distance between peaks
+    double searchBackThreshold = 0.0;
+   
+    //these in case for preventing counting one heartbeat twice
+    int lastPeak = -1;
     int refractoryPeriod = 40;
 
-    for (int i = 1; i<signal.size() - 1; i++) {
-        if (signal[i] > signal[i - 1] && signal[i] > signal[i+1]){
+    vector<int> rrIntervals; //distance between peaks
+    double rrAverage = 0.0;
+    double missedBeatLimit = 0.0;
+
+    //for storing the best weak peak in case a heartbeat was missed [search-back process]
+    int searchBackPeak = -1;
+    double searchBackValue = 0.0;
+
+    for (int i = 1; i < signal.size() - 1; i++) {
+        //check if current point is a local maximum
+        if (signal[i] > signal[i - 1] && signal[i] > signal[i + 1]) {
             double peakValue = signal[i];
-            if (peakValue > threshold){
-                if (lastPeak == -1 || i - lastPeak > refractoryPeriod){
+
+            //peak is strong enough to possibly be a heartbeat
+            if (peakValue > threshold) {
+                if (lastPeak == -1 ||
+                    i - lastPeak > refractoryPeriod) {
+
                     signalPeakEstimate = 0.125 * peakValue + 0.875 * signalPeakEstimate;
-                
-                    peaks.push_back(i); //i is the detected peak
+                    peaks.push_back(i);
+
+                    //calculate RR interval only if there was a previous heartbeat
+                    if (lastPeak != -1) {
+                        int rr = i - lastPeak;
+                        rrIntervals.push_back(rr);
+
+                        //keep only the 8 most recent RR intervals for the current average
+                        if (rrIntervals.size() > 8) {
+                            rrIntervals.erase(rrIntervals.begin());
+                        }
+
+                        //calculating average RR interval
+                        double rrSum = 0.0;
+                        for (int value : rrIntervals) {
+                            rrSum += value;
+                        }
+
+                        rrAverage = rrSum / rrIntervals.size();
+                        missedBeatLimit = 1.66 * rrAverage;
+                    }
+                    //current heartbeat becomes the new previous heartbeat
                     lastPeak = i;
+                }
+
             } else {
+                //if peak too small = noise
                 noisePeakEstimate = 0.125 * peakValue + 0.875 * noisePeakEstimate;
-            }
+
+                 //saving the strongest weak peak in case we missed a heartbeat
+                 if (peakValue > searchBackThreshold && peakValue > searchBackValue) {
+                    searchBackValue = peakValue;
+                    searchBackPeak = i;
+                  }
+                }
+        //update threshold for the next candidate peak
             threshold = noisePeakEstimate + 0.25 * (signalPeakEstimate - noisePeakEstimate);
+            searchBackThreshold = 0.5 * threshold;
+        //search-back logic
+        if (lastPeak != -1 && missedBeatLimit > 0 && i - lastPeak > missedBeatLimit) {
+            if (searchBackPeak != -1) {
+                int rr = searchBackPeak - lastPeak; //calculating RR interval for the recovered heartbeat
+                rrIntervals.push_back(rr);
+                if (rrIntervals.size() > 8) {
+                    rrIntervals.erase(rrIntervals.begin());
+                }
+
+                //recalculate the average RR interval
+                double rrSum = 0.0;
+                for (int value : rrIntervals) {
+                    rrSum += value;
+                }
+
+                rrAverage = rrSum / rrIntervals.size();
+                missedBeatLimit = 1.66 * rrAverage;
+
+                //add the recovered heartbeat
+                peaks.push_back(searchBackPeak);
+                lastPeak = searchBackPeak;
+
+                searchBackPeak = -1;
+                searchBackValue = 0.0;
+            }
         }
     }
+
+ }
+
     return peaks;
 }
-
-
-
