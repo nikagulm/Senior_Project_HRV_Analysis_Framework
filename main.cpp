@@ -1,106 +1,61 @@
 #include <iostream>
 #include <vector>
+#include <string>
 #include "PanTompkinsDetector.h"
 #include "headerParser.h"
 #include "dataParser.h"
 #include "annotationParser.h"
 #include "detectorEvaluator.h"
-
 using namespace std;
 
 int main() {
+    string record = "100";
+
     //parse the header file
     HeaderParser parser;
-    parser.parse("100.hea");
+    parser.parse(record + ".hea");
 
-    cout << "Testing getter sampling rate: "
-         << parser.getSamplingRate() << endl;
+    cout << "Sampling rate: " << parser.getSamplingRate() << endl;
+    cout << "Stored signals: " << parser.getSignals().size() << endl;
 
-    cout << "Testing getter stored signals: "
-         << parser.getSignals().size() << endl;
-
-
-    //parse the ECG data file
+    //parse ECG samples
     DataParser dataParser;
-    vector<int> samples = dataParser.parseFormat212("100.dat");
+    vector<int> samples = dataParser.parseFormat212(record + ".dat");
 
     cout << "Decoded samples: " << samples.size() << endl;
+    cout << "Channel 1 samples: " << dataParser.getChannel1().size() << endl;
+    cout << "Channel 2 samples: " << dataParser.getChannel2().size() << endl;
 
-    for (int i = 0; i < 10 && i < samples.size(); i++) {
-        cout << samples[i] << " ";
-    }
-
-    cout << endl;
-
-
-    //get channel 1
+    //use the first ECG channel
     vector<int> channel1 = dataParser.getChannel1();
-
-    cout << "Channel 1 samples: "
-         << dataParser.getChannel1().size() << endl;
-
-    cout << "Channel 2 samples: "
-         << dataParser.getChannel2().size() << endl;
-
-
-    //convert channel 1 to double values for Pan-Tompkins
     vector<double> ecgSignal(channel1.begin(), channel1.end());
-
 
     //run Pan-Tompkins
     PanTompkinsDetector detector(parser.getSamplingRate());
-
     vector<int> detectedPeaks = detector.detect(ecgSignal);
 
-    cout << "Detected peaks: "
-         << detectedPeaks.size() << endl;
+    cout << "Detected peaks: " << detectedPeaks.size() << endl;
 
-    vector<int> correctedPeaks = detectedPeaks;
-    for (int& peak : correctedPeaks) {
-        peak -= 29;
-    }
-
-
-    //parse the reference annotations
+    //parse reference heartbeat annotations
     AnnotationParser annotationParser;
-    vector<int> annotations = annotationParser.parse("100.atr");
+    vector<int> annotations = annotationParser.parse(record + ".atr");
 
-    cout << "Annotations: "
-         << annotations.size() << endl;
+    cout << "Annotations: " << annotations.size() << endl;
 
-    for (int i = 0; i < 10 && i < annotations.size(); i++) {
-        cout << annotations[i] << " ";
-    }
-
-    cout << endl;
-
-    //compare the first detected peaks with reference annotations
+    //compare the first detected peaks with the reference annotations
     cout << "\nFirst detected peaks vs annotations:" << endl;
-    for (int i = 0;
-         i < 10 &&
-         i < detectedPeaks.size() &&
-         i < annotations.size();
-         i++) {
 
-        cout << "Detected: " << detectedPeaks[i]
-             << "   Reference: " << annotations[i] << endl;
-
-        cout << "Difference: "
-             << detectedPeaks[i] - annotations[i]
-             << endl;
+    for (int i = 0; i < 10 && i < detectedPeaks.size() && i < annotations.size(); i++) {
+        cout << "Detected: " << detectedPeaks[i] << "   Reference: " << annotations[i] << endl;
+        cout << "Difference: " << detectedPeaks[i] - annotations[i] << endl;
     }
 
-
-    //evaluate the detector using different tolerance windows
+    //evaluate detector performance using different tolerance windows
     DetectorEvaluator evaluator;
-
     vector<int> tolerances = {15, 20, 25, 30};
+
     for (int tolerance : tolerances) {
-        EvaluationResult result = evaluator.evaluate(
-            correctedPeaks,
-            annotations,
-            tolerance
-        );
+        EvaluationResult result = evaluator.evaluate(detectedPeaks, annotations, tolerance);
 
         cout << "\nTolerance: " << tolerance << " samples" << endl;
         cout << "True positives: " << result.truePositives << endl;
