@@ -1,13 +1,22 @@
 #include "PanTompkinsDetector.h"
 using namespace std;
 
-
+/*     */
 PanTompkinsDetector::PanTompkinsDetector(int samplingRate) {
     this->samplingRate = samplingRate;
 }
 
-vector<int> PanTompkinsDetector::detect(const vector<double>& ecgSignal) {
 
+/* Runs the complete Pan-Tompkins heartbeat detection pipeline.
+ * Processing stages:
+   1. Band-pass filtering
+   2. Derivative calculation
+   3. Squaring
+   4. Moving-window integration
+   5. Adaptive peak detection
+   @param ecgSignal ECG signal samples.
+   @return Sample positions of the detected R-peaks. */
+vector<int> PanTompkinsDetector::detect(const vector<double>& ecgSignal) {
     vector<double> filteredSignal = bandPassFilter(ecgSignal);
     vector<double> derivativeSignal = derivative(filteredSignal);
     vector<double> squaredSignal = squareSignal(derivativeSignal);
@@ -18,53 +27,57 @@ vector<int> PanTompkinsDetector::detect(const vector<double>& ecgSignal) {
     return peaks;
 }
 
-//applies the low and high-pass stage of the Pan-Tompkins preprocessing for very fast and slow noise
-vector<double> PanTompkinsDetector::bandPassFilter(const vector<double>& signal) {
+
+
+/* Applies band-pass filtering to the ECG signal.
+   The filtering stage reduces unwanted low-frequency and high-frequency components 
+   while keeping the frequency range where the QRS complex is most visible.
+   - @param signal Original ECG signal samples.
+   - @return Filtered ECG signal.*/
+
+ vector<double> PanTompkinsDetector::bandPassFilter(const vector<double>& signal) {
     if (signal.empty()) {
         return {};
     }
     vector<double> filteredValues(signal.size(), 0);
     //low-pass filter
     for (int i = 12; i < signal.size(); i++) {
-        filteredValues[i] =
-                2 * filteredValues[i - 1]
-                - filteredValues[i - 2]
-                + signal[i]
-                - 2 * signal[i - 6]
-                + signal[i - 12];
-    }
+    filteredValues[i] = 2 * filteredValues[i - 1] - filteredValues[i - 2]
+        + signal[i] - 2 * signal[i - 6] + signal[i - 12];
+}
     
     vector<double> highPassValues(signal.size(), 0);
     //high-pass filter
     for (int i = 32; i < signal.size(); i++) {
-        highPassValues[i] =
-                highPassValues[i - 1]
-                - filteredValues[i] / 32.0
-                + filteredValues[i - 16]
-                - filteredValues[i - 17]
-                + filteredValues[i - 32] / 32.0;
-    }
+        highPassValues[i] = highPassValues[i - 1] - filteredValues[i] / 32.0 + filteredValues[i - 16] - filteredValues[i - 17] + filteredValues[i - 32] / 32.0;
+        }
     return highPassValues;
 }
 
 
-//tells where signal changes quickly
+/* Calculates the derivative of the filtered ECG signal.
+   The derivative emphasizes rapid changes in the signal,
+   especially the steep slopes associated with the QRS complex. */
 vector<double> PanTompkinsDetector::derivative(const vector<double>& signal) {
     if (signal.size() < 5) {
         return {};
     }
     vector<double> derivativeValues(signal.size(), 0);
     for (int i = 2; i < signal.size() - 2; i++) {
-        derivativeValues[i] =
-                (-signal[i - 2]
-                 - 2 * signal[i - 1]
-                 + 2 * signal[i + 1]
-                 + signal[i + 2]) / 8.0;
-    }
+        derivativeValues[i] = (-signal[i - 2] - 2 * signal[i - 1] + 2 * signal[i + 1] + signal[i + 2]) / 8.0;
+        }
     return derivativeValues;
 }
 
-//squares every value in the signal so large changes become more noticeable
+
+
+
+/* Squares every sample of the derivative signal.
+   Squaring makes all values positive and increases the influence
+   of larger signal changes. This helps emphasize the steep slopes associated with the QRS complex.
+ 
+   - @param signal Derivative signal.
+   - @return Squared signal. */
 vector<double> PanTompkinsDetector::squareSignal(const vector<double>& signal) {
     vector<double> squareValues;
     for (double value : signal) {
@@ -73,7 +86,14 @@ vector<double> PanTompkinsDetector::squareSignal(const vector<double>& signal) {
     return squareValues;
 }
 
-//averages the squared signal over a short window to emphasize QRS complexes
+
+
+
+/* Applies moving-window integration to the squared signal.
+  The function combines values from a recent time window to
+  represent the overall energy and approximate width of the QRS complex.
+   - @param signal Squared ECG signal.
+   - @return Integrated ECG signal.*/
 vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>& signal) {
     if (signal.empty()) {
         return {};
@@ -94,7 +114,18 @@ vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>
     return integratedValues;
 }
 
-//cetects QRS peak positions from the processed ECG signal
+
+
+
+/* Detects heartbeat peaks from the processed ECG signal.
+   The function searches for local maxima and classifies them
+   using adaptive signal and noise thresholds. It also applies
+   timing rules such as the refractory period and RR-interval
+   tracking to reduce false detections.
+  
+   - @param signal Integrated ECG signal.
+   - @return Sample positions of the detected heartbeat peaks.*/
+
 vector<int> PanTompkinsDetector::detectPeaks(const vector<double>& signal) {
     vector<int> peaks;
     if (signal.empty()) {
@@ -119,7 +150,7 @@ vector<int> PanTompkinsDetector::detectPeaks(const vector<double>& signal) {
 
     double averageValue = sumValue / initializationSamples;
     // Set the starting estimates before peak detection begins
-    //fix THE BELOW LATER
+    //fix TE BELOW LATER
     double signalPeakEstimate = 0.25 * maxValue;
     double noisePeakEstimate = 0.5 * averageValue;
     double threshold = noisePeakEstimate + 0.25 * (signalPeakEstimate - noisePeakEstimate);
