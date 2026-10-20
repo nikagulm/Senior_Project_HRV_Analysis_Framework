@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 #include "PanTompkinsDetector.h"
 #include "HamiltonDetector.h"
@@ -72,8 +73,11 @@ int main() {
 
     //evaluate both detectors using the same tolerance windows
     DetectorEvaluator evaluator;
-    vector<int> tolerances = {15, 20, 25, 30};
+    int standardTolerance = static_cast<int>(
+        round(0.150 * parser.getSamplingRate())
+    );
 
+    vector<int> tolerances = {15, 20, 25, 30, standardTolerance};
     cout << "\n--- Pan-Tompkins Evaluation ---" << endl;
 
     for (int tolerance : tolerances) {

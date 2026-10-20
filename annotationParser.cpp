@@ -7,13 +7,8 @@ using namespace std;
 
 // Checks whether the annotation type represents an actual heartbeat
 bool isBeatAnnotation(int type) {
-    return (type >= 1 && type <= 13) ||
-           type == 25 ||
-           type == 30 ||
-           type == 34 ||
-           type == 35 ||
-           type == 38 ||
-           type == 41;
+    return (type >= 1 && type <= 13) || type == 25 || type == 30 || type == 34 || type == 35 ||
+           type == 38 || type == 41;
 }
 
 
