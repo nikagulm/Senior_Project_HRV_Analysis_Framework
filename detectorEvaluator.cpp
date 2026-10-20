@@ -15,7 +15,7 @@ EvaluationResult DetectorEvaluator::evaluate(
         int bestMatch = -1;
         int smallestDifference = toleranceSamples + 1;
 
-        // Find the closest unmatched reference annotation
+        //find the closest unmatched reference annotation
         for (int i = 0; i < annotations.size(); i++) {
             if (matchedAnnotations[i]) {
                 continue;
@@ -39,7 +39,7 @@ EvaluationResult DetectorEvaluator::evaluate(
             result.falsePositives++;
         }
     }
-    //xount reference beats that were never matched
+    //count reference beats that were never matched
     for (bool matched : matchedAnnotations) {
         if (!matched) {
             result.falseNegatives++;

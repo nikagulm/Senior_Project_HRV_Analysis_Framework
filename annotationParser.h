@@ -1,6 +1,5 @@
 #ifndef ANNOTATIONPARSER_H
 #define ANNOTATIONPARSER_H
-
 #include <string>
 #include <vector>
 

@@ -4,21 +4,15 @@
 
 using namespace std;
 
-/**
- * creates a Pan-Tompkins detector.
- *
- * @param samplingRate original ECG sampling frequency in Hz.
- */
+/* creates a Pan-Tompkins detector.
+   @param samplingRate original ECG sampling frequency in Hz.*/
 PanTompkinsDetector::PanTompkinsDetector(int samplingRate) {
     originalSamplingRate = samplingRate;
 }
 
-/**
- * runs all Pan-Tompkins stages and returns the detected R-peaks.
- *
- * @param ecgSignal original ECG samples.
- * @return detected R-peak positions in original sample coordinates.
- */
+/* runs all Pan-Tompkins stages and returns the detected R-peaks.
+   @param ecgSignal original ECG samples.
+   @return detected R-peak positions in original sample coordinates.*/
 vector<int> PanTompkinsDetector::detect(const vector<double>& ecgSignal) {
     if (ecgSignal.empty()) {
         return {};
@@ -50,14 +44,13 @@ vector<int> PanTompkinsDetector::detect(const vector<double>& ecgSignal) {
     return originalPeaks;
 }
 
-/**
- * resamples the ECG signal using linear interpolation.
- *
- * @param signal ECG samples.
- * @param originalRate original sampling frequency.
- * @param targetRate target sampling frequency.
- * @return resampled ECG signal.
- */
+
+
+/* resamples the ECG signal using linear interpolation.
+   @param signal ECG samples.
+   @param originalRate original sampling frequency.
+   @param targetRate target sampling frequency.
+   @return resampled ECG signal. */
 vector<double> PanTompkinsDetector::resample(const vector<double>& signal, int originalRate, int targetRate) {
     if (signal.empty() || originalRate <= 0 || targetRate <= 0) {
         return {};
@@ -83,12 +76,13 @@ vector<double> PanTompkinsDetector::resample(const vector<double>& signal, int o
     return result;
 }
 
-/**
- * applies the low-pass and high-pass filters used by Pan-Tompkins.
- *
- * @param signal ECG signal sampled at 200 Hz.
- * @return filtered ECG signal.
- */
+
+
+
+
+/* applies the low-pass and high-pass filters used by Pan-Tompkins.
+   @param signal ECG signal sampled at 200 Hz.
+   @return filtered ECG signal. */
 vector<double> PanTompkinsDetector::bandPassFilter(const vector<double>& signal) {
     if (signal.empty()) {
         return {};
@@ -114,12 +108,11 @@ vector<double> PanTompkinsDetector::bandPassFilter(const vector<double>& signal)
     return highPassValues;
 }
 
-/**
- * calculates the derivative to emphasize rapid changes in the ECG.
- *
- * @param signal filtered ECG signal.
- * @return derivative values.
- */
+
+
+/*calculates the derivative to emphasize rapid changes in the ECG.
+  @param signal filtered ECG signal.
+  @return derivative values. */
 vector<double> PanTompkinsDetector::derivative(const vector<double>& signal) {
     if (signal.size() < 5) {
         return {};
@@ -135,12 +128,12 @@ vector<double> PanTompkinsDetector::derivative(const vector<double>& signal) {
     return derivativeValues;
 }
 
-/**
- * squares the derivative values to make large changes more noticeable.
- *
- * @param signal derivative signal.
- * @return squared signal.
- */
+
+
+
+/*squares the derivative values to make large changes more noticeable.
+  @param signal derivative signal.
+  @return squared signal. */
 vector<double> PanTompkinsDetector::squareSignal(const vector<double>& signal) {
     vector<double> squaredValues(signal.size());
 
@@ -151,12 +144,11 @@ vector<double> PanTompkinsDetector::squareSignal(const vector<double>& signal) {
     return squaredValues;
 }
 
-/**
- * applies a 150 ms moving-window integration.
- *
- * @param signal squared ECG signal.
- * @return integrated signal.
- */
+
+
+/* applies a 150 ms moving-window integration.
+   @param signal squared ECG signal.
+   @return integrated signal. */
 vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>& signal) {
     if (signal.empty()) {
         return {};
@@ -165,7 +157,6 @@ vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>
     int windowSize = static_cast<int>(0.15 * processingRate);
     vector<double> integratedValues(signal.size(), 0.0);
     double sum = 0.0;
-
     for (int i = 0; i < signal.size(); i++) {
         sum += signal[i];
 
@@ -177,20 +168,18 @@ vector<double> PanTompkinsDetector::movingWindowIntegration(const vector<double>
             integratedValues[i] = sum / windowSize;
         }
     }
-
     return integratedValues;
 }
 
-/**
- * finds the actual R-peak close to a detected QRS candidate.
- *
- * the local mean is removed so the ECG baseline does not affect
- * which point is selected as the R-peak.
- *
- * @param signal raw ECG signal sampled at 200 Hz.
- * @param candidatePosition position found in the integrated signal.
- * @return position of the R-peak.
- */
+
+
+
+
+/* finds the actual R-peak close to a detected QRS candidate.
+   - the local mean is removed so the ECG baseline does not affect which point is selected as the R-peak.
+   @param signal raw ECG signal sampled at 200 Hz.
+   @param candidatePosition position found in the integrated signal.
+   @return position of the R-peak.*/
 int PanTompkinsDetector::findRPeak(const vector<double>& signal, int candidatePosition) {
     int searchWindow = static_cast<int>(0.20 * processingRate);
 
@@ -226,16 +215,16 @@ int PanTompkinsDetector::findRPeak(const vector<double>& signal, int candidatePo
     return rPeak;
 }
 
-/**
- * detects QRS candidates using adaptive thresholds.
- *
- * it also handles the refractory period, possible T-waves and
- * search-back for beats that may have been missed.
- *
- * @param integratedSignal moving-window integrated signal.
- * @param originalSignal raw ECG signal sampled at 200 Hz.
- * @return detected R-peak positions.
- */
+
+
+
+/* detects QRS candidates using adaptive thresholds.
+   it also handles the refractory period, possible T-waves and
+   search-back for beats that may have been missed.
+ 
+ -> @param integratedSignal moving-window integrated signal.
+ -> @param originalSignal raw ECG signal sampled at 200 Hz.
+ -> @return detected R-peak positions.  */
 vector<int> PanTompkinsDetector::detectPeaks(const vector<double>& integratedSignal, const vector<double>& originalSignal) {
     vector<int> peaks;
 
