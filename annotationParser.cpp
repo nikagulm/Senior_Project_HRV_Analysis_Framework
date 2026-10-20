@@ -7,8 +7,26 @@ using namespace std;
 
 // Checks whether the annotation type represents an actual heartbeat
 bool isBeatAnnotation(int type) {
-    return (type >= 1 && type <= 13) || type == 25 || type == 30 || type == 34 || type == 35 ||
-           type == 38 || type == 41;
+    switch (type) {
+        case 1:   // Normal beat
+        case 2:   // Left bundle branch block beat
+        case 3:   // Right bundle branch block beat
+        case 4:   // Atrial premature beat
+        case 5:   // Premature ventricular contraction
+        case 6:   // Fusion of ventricular and normal beat
+        case 7:   // Nodal premature beat
+        case 8:   // Atrial escape beat
+        case 9:   // Nodal escape beat
+        case 10:  // Supraventricular premature beat
+        case 11:  // Ventricular escape beat
+        case 12:  // Paced beat
+        case 34:  // Fusion of paced and normal beat
+        case 41:  // R-on-T premature ventricular contraction
+            return true;
+
+        default:
+            return false;
+    }
 }
 
 
