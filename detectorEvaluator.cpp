@@ -47,15 +47,11 @@ EvaluationResult DetectorEvaluator::evaluate(
     }
 
     if (result.truePositives + result.falseNegatives > 0) {
-        result.sensitivity =
-            static_cast<double>(result.truePositives) /
-            (result.truePositives + result.falseNegatives);
+        result.sensitivity = static_cast<double>(result.truePositives) / (result.truePositives + result.falseNegatives);
     }
 
     if (result.truePositives + result.falsePositives > 0) {
-        result.ppv =
-            static_cast<double>(result.truePositives) /
-            (result.truePositives + result.falsePositives);
+        result.ppv = static_cast<double>(result.truePositives) / (result.truePositives + result.falsePositives);
     }
 
     return result;

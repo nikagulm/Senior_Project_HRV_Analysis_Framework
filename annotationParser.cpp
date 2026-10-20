@@ -67,9 +67,7 @@ vector<int> AnnotationParser::parse(const string& fileName) {
             }
 
             // Combine the four bytes into the larger time offset
-            int skip = (skipBytes[0] << 16) | (skipBytes[1] << 24)
-                | skipBytes[2] | (skipBytes[3] << 8);
-
+            int skip = (skipBytes[0] << 16) | (skipBytes[1] << 24) | skipBytes[2] | (skipBytes[3] << 8);
             currentSample += skip;
             continue;
         }
