@@ -1,0 +1,11 @@
+cat > .gitignore << 'EOF'
+*.dat
+*.hea
+*.atr
+.DS_Store
+*.dSYM/
+hrv
+parserTest
+test
+output
+EOF
