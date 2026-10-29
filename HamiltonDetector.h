@@ -1,17 +1,16 @@
 #ifndef HAMILTONDETECTOR_H
 #define HAMILTONDETECTOR_H
-
 #include <vector>
 #include "RPeakDetector.h"
 
-//Hamilton & Tompkins (1986) QRS detector, based on Hamilton's qrsdet.c
 class HamiltonDetector : public RPeakDetector {
 public:
     //refineRPeak = true: move each detection to the exact R-peak
     HamiltonDetector(int samplingRate, bool refineRPeak = true);
     std::vector<int> detect(const std::vector<double>& ecgSignal) override;
 
-private:
+protected:
+    //protected so the ablation variants can replace single stages
     int originalSamplingRate;
     int processingRate = 200;
     bool refineRPeak;
@@ -33,8 +32,8 @@ private:
     //signal processing
     std::vector<double> resample(const std::vector<double>& signal, int originalRate, int targetRate);
     static double sampleAt(const std::vector<double>& v, int i);
-    std::vector<double> lowPassFilter(const std::vector<double>& signal);
-    std::vector<double> highPassFilter(const std::vector<double>& signal);
+    virtual std::vector<double> lowPassFilter(const std::vector<double>& signal);
+    virtual std::vector<double> highPassFilter(const std::vector<double>& signal);
     std::vector<double> derivative(const std::vector<double>& signal);
     std::vector<double> absoluteSignal(const std::vector<double>& signal);
     std::vector<double> movingWindowIntegration(const std::vector<double>& signal);
@@ -44,9 +43,10 @@ private:
     bool isBaselineShift(const std::vector<double>& rawSlope, int n, double& maxSlope);
     double findPeak(double value);
     double median(const std::vector<double>& values);
-    void updateThreshold();
+    virtual void updateThreshold();
     void acceptQRS(double peakHeight, int rrInterval);
     void restartLearning();
+    virtual bool useSearchBack() const { return true; } //turned off in HamiltonAblation
     int findRPeak(const std::vector<double>& signal, int approximatePosition);
 
     //peak finder
@@ -83,6 +83,7 @@ private:
     int secondCounter = 0;
     double secondMax = 0.0;
     std::vector<double> resetPeaks;
+
     std::vector<int> qrsPositions;
 };
 

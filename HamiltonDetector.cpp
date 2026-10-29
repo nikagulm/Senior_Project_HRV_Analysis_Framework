@@ -318,7 +318,7 @@ vector<int> HamiltonDetector::findQRSComplexes(const vector<double>& integrated,
 
             //rule 5 search-back 
             //no QRS for 1.5 x RR interval. accept the saved peak if it is above half the threshold
-            if (count > searchBackLimit && searchBackPeak > 0.5 * detectionThreshold) {
+            if (useSearchBack() && count > searchBackLimit && searchBackPeak > 0.5 * detectionThreshold) {
                 acceptQRS(searchBackPeak, searchBackLocation);
                 count = count - searchBackLocation;
                 qrsPositions.push_back(n - (count + filterDelay));
