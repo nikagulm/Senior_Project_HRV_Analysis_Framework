@@ -1,107 +1,62 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <utility>
 #include <cmath>
-
-#include "PanTompkinsDetector.h"
-#include "HamiltonDetector.h"
 #include "headerParser.h"
 #include "dataParser.h"
 #include "annotationParser.h"
 #include "detectorEvaluator.h"
+#include "RPeakDetector.h"
+#include "PanTompkinsDetector.h"
+#include "HamiltonDetector.h"
+#include "HilbertDetector.h"
 
 using namespace std;
 
 int main() {
-    string record = "100";
+    vector<string> records = {"100", "101"};
 
-    //parse the header file
-    HeaderParser parser;
-    parser.parse(record + ".hea");
+    for (const string& record : records) {
+        //read the record
+        HeaderParser header;
+        header.parse(record + ".hea");
+        DataParser data;
+        data.parseFormat212(record + ".dat");
+        vector<int> channel1 = data.getChannel1();
+        AnnotationParser annotations;
+        vector<int> reference = annotations.parse(record + ".atr");
 
-    cout << "Sampling rate: " << parser.getSamplingRate() << endl;
-    cout << "Stored signals: " << parser.getSignals().size() << endl;
+        //ADC values -> millivolts
+        const SignalInfo& info = header.getSignals()[0];
+        vector<double> ecg(channel1.size());
+        for (int i = 0; i < channel1.size(); i++) {
+            ecg[i] = (channel1[i] - info.adcZero) / static_cast<double>(info.gain);
+        }
 
-    //parse ECG samples
-    DataParser dataParser;
-    vector<int> samples = dataParser.parseFormat212(record + ".dat");
+        int fs = header.getSamplingRate();
+        PanTompkinsDetector panTompkins(fs);
+        HamiltonDetector hamilton(fs);
+        HilbertDetector hilbert(fs);
 
-    cout << "Decoded samples: " << samples.size() << endl;
-    cout << "Channel 1 samples: " << dataParser.getChannel1().size() << endl;
-    cout << "Channel 2 samples: " << dataParser.getChannel2().size() << endl;
+        //all detectors through the same interface
+        vector<pair<string, RPeakDetector*>> detectors = {
+            {"Pan-Tompkins", &panTompkins},
+            {"Hamilton", &hamilton},
+            {"Hilbert", &hilbert}
+        };
 
-    //use the first ECG channel
-    vector<int> channel1 = dataParser.getChannel1();
-    vector<double> ecgSignal(channel1.begin(), channel1.end());
+        DetectorEvaluator evaluator;
+        int tolerance = static_cast<int>(round(0.150 * fs)); //150 ms
 
-    //parse reference heartbeat annotations
-    AnnotationParser annotationParser;
-    vector<int> annotations = annotationParser.parse(record + ".atr");
-
-    cout << "Annotations: " << annotations.size() << endl;
-
-
-    //run Pan-Tompkins
-    PanTompkinsDetector panTompkins(parser.getSamplingRate());
-    vector<int> panTompkinsPeaks = panTompkins.detect(ecgSignal);
-
-    cout << "\nPan-Tompkins detected peaks: " << panTompkinsPeaks.size() << endl;
-
-    //compare the first Pan-Tompkins peaks with the reference annotations
-    cout << "\nFirst Pan-Tompkins peaks vs annotations:" << endl;
-
-    for (int i = 0; i < 10 && i < panTompkinsPeaks.size() && i < annotations.size(); i++) {
-        cout << "Detected: " << panTompkinsPeaks[i] << "   Reference: " << annotations[i] << endl;
-        cout << "Difference: " << panTompkinsPeaks[i] - annotations[i] << endl;
+        cout << "\nRecord " << record << " (" << reference.size() << " reference beats)" << endl;
+        for (auto& d : detectors) {
+            vector<int> peaks = d.second->detect(ecg);
+            EvaluationResult r = evaluator.evaluate(peaks, reference, tolerance);
+            cout << "  " << d.first << ": detected=" << peaks.size()
+                 << " TP=" << r.truePositives << " FP=" << r.falsePositives << " FN=" << r.falseNegatives
+                 << " Se=" << r.sensitivity * 100 << "% PPV=" << r.ppv * 100 << "%" << endl;
+        }
     }
-
-
-    //run Hamilton
-    HamiltonDetector hamilton(parser.getSamplingRate());
-    vector<int> hamiltonPeaks = hamilton.detect(ecgSignal);
-
-    cout << "\nHamilton detected peaks: " << hamiltonPeaks.size() << endl;
-
-    //compare the first Hamilton peaks with the reference annotations
-    cout << "\nFirst Hamilton peaks vs annotations:" << endl;
-
-    for (int i = 0; i < 10 && i < hamiltonPeaks.size() && i < annotations.size(); i++) {
-        cout << "Detected: " << hamiltonPeaks[i] << "   Reference: " << annotations[i] << endl;
-        cout << "Difference: " << hamiltonPeaks[i] - annotations[i] << endl;
-    }
-
-
-    //evaluate both detectors using the same tolerance windows
-    DetectorEvaluator evaluator;
-    int standardTolerance = static_cast<int>(
-        round(0.150 * parser.getSamplingRate())
-    );
-
-    vector<int> tolerances = {15, 20, 25, 30, standardTolerance};
-    cout << "\n--- Pan-Tompkins Evaluation ---" << endl;
-
-    for (int tolerance : tolerances) {
-        EvaluationResult result = evaluator.evaluate(panTompkinsPeaks, annotations, tolerance);
-
-        cout << "\nTolerance: " << tolerance << " samples" << endl;
-        cout << "True positives: " << result.truePositives << endl;
-        cout << "False positives: " << result.falsePositives << endl;
-        cout << "False negatives: " << result.falseNegatives << endl;
-        cout << "Sensitivity: " << result.sensitivity << endl;
-        cout << "PPV: " << result.ppv << endl;
-    }
-
-    cout << "\n--- Hamilton Evaluation ---" << endl;
-    for (int tolerance : tolerances) {
-        EvaluationResult result = evaluator.evaluate(hamiltonPeaks, annotations, tolerance);
-
-        cout << "\nTolerance: " << tolerance << " samples" << endl;
-        cout << "True positives: " << result.truePositives << endl;
-        cout << "False positives: " << result.falsePositives << endl;
-        cout << "False negatives: " << result.falseNegatives << endl;
-        cout << "Sensitivity: " << result.sensitivity << endl;
-        cout << "PPV: " << result.ppv << endl;
-    }
-
     return 0;
 }
