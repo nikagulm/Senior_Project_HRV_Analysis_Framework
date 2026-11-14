@@ -16,7 +16,8 @@ public:
     EvaluationResult evaluate(
         const std::vector<int>& detectedPeaks,
         const std::vector<int>& annotations,
-        int toleranceSamples
+        int toleranceSamples,
+        int startSample = 0 // skipping first 5 min of the recording
     );
 };
 

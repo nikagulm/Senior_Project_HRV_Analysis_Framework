@@ -15,7 +15,7 @@
 using namespace std;
 
 int main() {
-    vector<string> records = {"100", "101"};
+    vector<string> records = {"records_physionet/100", "records_physionet/101"};
 
     for (const string& record : records) {
         //read the record

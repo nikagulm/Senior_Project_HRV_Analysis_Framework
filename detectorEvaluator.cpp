@@ -5,7 +5,9 @@ using namespace std;
 EvaluationResult DetectorEvaluator::evaluate(
     const vector<int>& detectedPeaks,
     const vector<int>& annotations,
-    int toleranceSamples
+    int toleranceSamples,
+    int startSample
+
 ) {
     EvaluationResult result{};
     vector<bool> matchedAnnotations(annotations.size(), false);
@@ -32,19 +34,21 @@ EvaluationResult DetectorEvaluator::evaluate(
 
         //if a match was found, count a true positive
         if (bestMatch != -1) {
-            result.truePositives++;
             matchedAnnotations[bestMatch] = true;
-        } else {
-            //otherwise the detection is a false positive
+            if (annotations[bestMatch] >= startSample){
+                result.truePositives++;
+            }
+        } else if (detected >= startSample) {
             result.falsePositives++;
         }
     }
-    //count reference beats that were never matched
-    for (bool matched : matchedAnnotations) {
-        if (!matched) {
+
+    //count reference beats that were never matched after first 5 mins
+     for (int i = 0; i < annotations.size(); i++) {
+        if (!matchedAnnotations[i] && annotations[i] >= startSample) {
             result.falseNegatives++;
-        }
-    }
+         }
+     }
 
     if (result.truePositives + result.falseNegatives > 0) {
         result.sensitivity = static_cast<double>(result.truePositives) / (result.truePositives + result.falseNegatives);
