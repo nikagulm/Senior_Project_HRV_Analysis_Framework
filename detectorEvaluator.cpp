@@ -13,20 +13,24 @@ EvaluationResult DetectorEvaluator::evaluate(
     vector<bool> matchedAnnotations(annotations.size(), false);
 
     //check every detected peak
+    int first = 0; //first annotation that can still be matched
     for (int detected : detectedPeaks) {
         int bestMatch = -1;
         int smallestDifference = toleranceSamples + 1;
+            //skip annotations that are already matched or too far behind this beat
+        while (first < annotations.size() && (matchedAnnotations[first] || annotations[first] < detected - toleranceSamples)) {
+            first++;
+        }
 
-        //find the closest unmatched reference annotation
-        for (int i = 0; i < annotations.size(); i++) {
+        //check only the annotations close to this beat
+        for (int i = first; i < annotations.size() && annotations[i] <= detected + toleranceSamples; i++) {
             if (matchedAnnotations[i]) {
                 continue;
             }
             int difference = abs(detected - annotations[i]);
 
             //keep the closest annotation within the allowed tolerance
-            if (difference <= toleranceSamples &&
-                difference < smallestDifference) {
+            if (difference <= toleranceSamples && difference < smallestDifference) {
                 smallestDifference = difference;
                 bestMatch = i;
             }
@@ -37,11 +41,11 @@ EvaluationResult DetectorEvaluator::evaluate(
             matchedAnnotations[bestMatch] = true;
             if (annotations[bestMatch] >= startSample){
                 result.truePositives++;
-            }
+                }
         } else if (detected >= startSample) {
             result.falsePositives++;
+            }
         }
-    }
 
     //count reference beats that were never matched after first 5 mins
      for (int i = 0; i < annotations.size(); i++) {
