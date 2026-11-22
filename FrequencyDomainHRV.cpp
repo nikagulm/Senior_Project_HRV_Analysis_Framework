@@ -35,13 +35,18 @@ FrequencyDomainResult FrequencyDomainHRV::calculate(const vector<double>& nnTime
     for (int start = 0; start + n <= signal.size(); start += n) {
         vector<double> segment(signal.begin() + start, signal.begin() + start + n);
         Interpolator::detrend(segment); //remove mean and drift
-
+        double sumW2 = 0.0; //hann window part
+        for (int k = 0; k < n; k++) {
+            double w = 0.5 * (1.0 - cos(2.0 * M_PI * k / (n - 1)));
+            segment[k] *= w;
+            sumW2 += w * w;
+        }
         vector<double> power = estimator->power(segment, resampleRate, frequencies);
 
         //add each frequency power to its band
         double vlf = 0.0, lf = 0.0, hf = 0.0;
         for (int i = 0; i < frequencies.size(); i++) {
-            double p = 2.0 * power[i] / (static_cast<double>(n) * m); //convert to ms^2
+            double p = 2.0 * power[i] / (m * sumW2); //convert to ms^2 scaled by the window
             double f = frequencies[i];
             if (f < lfLow) {
                 vlf += p;
