@@ -177,9 +177,15 @@ vector<double> HilbertDetector::segmentThresholds(const vector<double>& hilbert)
     int size = hilbert.size();
     vector<double> thresholds(size, 0.0);
     double previousMax = -1.0; //-1 = first segment cuz no previous yet
-
-    for (int start = 0; start < size; start += segmentLength) {
+    
+    //go through the signal block by block 
+    int start = 0;
+    while (start < size) {
         int end = min(start + segmentLength, size);
+        //a short last block is joined to this one otherwise its threshold would be set from noise alone
+        if (size - end < segmentLength / 2) {
+            end = size;
+        }
         double maxValue = 0.0;
         double sumSquares = 0.0;
         for (int i = start; i < end; i++) {
@@ -205,6 +211,7 @@ vector<double> HilbertDetector::segmentThresholds(const vector<double>& hilbert)
             thresholds[i] = threshold;
         }
         previousMax = maxValue;
+        start = end; //next block starts where this one ended 
     }
     return thresholds;
 }
@@ -235,7 +242,6 @@ vector<int> HilbertDetector::findPeaks(const vector<double>& hilbert, const vect
     }
     return peaks;
 }
-
 
 
 //r peak = max of the ecg within +-10 samples of the hilbert peak
